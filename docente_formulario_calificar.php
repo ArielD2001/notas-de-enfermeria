@@ -249,62 +249,11 @@ require_once 'includes/header.php';
         <form action="" method="POST" id="formCalificacion" class="space-y-6">
             <?php if ($data['id_modulo'] == 1): // Promoción y Prevención ?>
                 <?php
-                $secciones = [
-                    'A.1 Relaciones interpersonales (10%)' => [
-                        'weight' => 0.1,
-                        'items' => [
-                            'Mantiene relaciones cordiales y respetuosas',
-                            'Expresa sus inquietudes con seguridad y confianza',
-                            'Sigue las líneas de autoridad establecidas',
-                            'Reconoce errores y acepta sugerencias',
-                            'Maneja situaciones de estrés adecuadamente'
-                        ]
-                    ],
-                    'A.2 Responsabilidad y compromiso (10%)' => [
-                        'weight' => 0.1,
-                        'items' => [
-                            'Puntualidad (asistencia 15 a 10 min antes)',
-                            'Porte de uniforme completo e impecable',
-                            'Permanencia en el sitio de práctica',
-                            'Cumplimiento de asistencia a actividades',
-                            'Entrega y sustento oportuno de trabajos',
-                            'Cumplimiento de normativa CURN',
-                            'Actitud y valores formativos',
-                            'Liderazgo en la toma de decisiones',
-                            'Asistencia a eventos y encuentros',
-                            'Uso racional y cuidado de equipos'
-                        ]
-                    ],
-                    'B.1 Conocimiento científico (40%)' => [
-                        'weight' => 0.4,
-                        'items' => [
-                            'Conceptos de salud fam, APS y Salud Pública',
-                            'Ámbitos de actuación en periodo resolutorio',
-                            'Componentes de protección y detección temprana',
-                            'Identificación de necesidades comunitarias',
-                            'Conceptos: Instrumentos, Charlas, Visitas',
-                            'Manejo de APGAR, FAMILIOGRAMA y ECOMAPA',
-                            'Conceptos y contenidos de AIEPI Comunitario',
-                            'Normas Técnicas, Guías (00412), MIAS y RIAS',
-                            'PAI, bioseguridad y cadena de frío'
-                        ]
-                    ],
-                    'B.2 Desempeño (40%)' => [
-                        'weight' => 0.4,
-                        'items' => [
-                            'Seguridad y confianza en actividades',
-                            'Remisión de necesidades detectadas',
-                            'Planeación, ejecución y evaluación de actividades',
-                            'Confrontación de carnet de Vacunación',
-                            'Priorización de actividades en promoción',
-                            'Realización de Educación en Salud',
-                            'Uso de ayudas didácticas',
-                            'Participación en Trabajo de Campo',
-                            'Aplicación del PAE Comunitario',
-                            'Evaluación escrita de la rotación'
-                        ]
-                    ]
-                ];
+                // Obtener criterios desde la base de datos
+                $stmt_criterios = $pdo->prepare("SELECT criterios_json FROM criterios_formularios WHERE id_modulo = ?");
+                $stmt_criterios->execute([$data['id_modulo']]);
+                $criterios_json = $stmt_criterios->fetchColumn();
+                $secciones = json_decode($criterios_json, true);
                 ?>
 
                 <div class="mb-6 p-4 bg-orange-50 border border-orange-100 rounded-2xl flex items-center justify-between">
