@@ -59,6 +59,13 @@ while ($row = $stmt_criterios->fetch(PDO::FETCH_ASSOC)) {
     $criterios_modulos[$row['id_modulo']] = json_decode($row['criterios_json'], true);
 }
 
+// Cargar información de rotaciones por módulo
+$stmt_rotaciones = $pdo->query("SELECT id_modulo, rotaciones FROM modulos_rotacion");
+$modulo_rotaciones = [];
+while ($row = $stmt_rotaciones->fetch(PDO::FETCH_ASSOC)) {
+    $modulo_rotaciones[$row['id_modulo']] = $row['rotaciones'];
+}
+
 // Configuración de headers por módulo
 $modulo_headers = [
     1 => [

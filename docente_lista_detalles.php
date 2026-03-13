@@ -20,7 +20,7 @@ if (!$id_lista) {
 
 // Verificar que la lista pertenece al docente
 $stmt_lista = $pdo->prepare("
-    SELECT l.*, m.nombre_modulo 
+    SELECT l.*, m.nombre_modulo, m.rotaciones 
     FROM listas l 
     JOIN modulos_rotacion m ON l.id_modulo = m.id_modulo 
     WHERE l.id_lista = ? AND l.id_docente = ?
@@ -120,10 +120,10 @@ require_once 'includes/header.php';
             <thead class="bg-slate-50">
                 <tr>
                     <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-widest">Estudiante</th>
-                    <?php if (in_array($lista_info['id_modulo'], [2, 3, 4, 5, 6])): ?>
+                    <?php if ($lista_info['rotaciones'] > 1): ?>
                         <th class="px-6 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50">Rotación 1</th>
                         <th class="px-6 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50">Rotación 2</th>
-                        <?php if ($lista_info['id_modulo'] == 4): ?>
+                        <?php if ($lista_info['rotaciones'] >= 3): ?>
                             <th class="px-6 py-4 text-center text-xs font-bold text-slate-400 uppercase tracking-widest bg-slate-100/50">Rotación 3</th>
                         <?php endif; ?>
                     <?php endif; ?>
@@ -139,7 +139,7 @@ require_once 'includes/header.php';
                             <div class="text-sm font-bold text-slate-900"><?php echo htmlspecialchars($e['apellidos'] . " " . $e['nombres']); ?></div>
                             <div class="text-xs text-slate-400">ID: <?php echo htmlspecialchars($e['identificacion']); ?></div>
                         </td>
-                        <?php if (in_array($lista_info['id_modulo'], [2, 3, 4, 5, 6])): ?>
+                        <?php if ($lista_info['rotaciones'] > 1): ?>
                             <td class="px-6 py-4 bg-slate-50/20 text-center">
                                 <span class="text-sm font-bold <?php echo ($e['nota_r1'] !== null) ? 'text-slate-700' : 'text-slate-300'; ?>">
                                     <?php echo $e['nota_r1'] !== null ? number_format($e['nota_r1'], 2) : '---'; ?>
@@ -150,7 +150,7 @@ require_once 'includes/header.php';
                                     <?php echo $e['nota_r2'] !== null ? number_format($e['nota_r2'], 2) : '---'; ?>
                                 </span>
                             </td>
-                            <?php if ($lista_info['id_modulo'] == 4): ?>
+                            <?php if ($lista_info['rotaciones'] >= 3): ?>
                                 <td class="px-6 py-4 bg-slate-50/20 text-center">
                                     <span class="text-sm font-bold <?php echo (isset($e['nota_r3']) && $e['nota_r3'] !== null) ? 'text-slate-700' : 'text-slate-300'; ?>">
                                         <?php echo (isset($e['nota_r3']) && $e['nota_r3'] !== null) ? number_format($e['nota_r3'], 2) : '---'; ?>
