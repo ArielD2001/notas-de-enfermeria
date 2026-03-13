@@ -1,0 +1,20 @@
+.nav-link:hover, .nav-link.active{
+    color:#fd7e14 !important;
+    
+}
+.nav-link.active{
+    font-weight: bold;
+}
+.nav-link{
+    color: grey;
+}
+.form-check-input:checked{
+    background-color: #fd7e14 !important;
+}
+
+.form-check-input{
+   cursor:pointer;
+}
+#eye{
+    cursor: pointer !important;
+}

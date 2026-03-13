@@ -1,0 +1,15 @@
+{
+  "name": "proyecto.2",
+  "version": "1.0.0",
+  "description": "![](https://github.com/googleapis/google-api-php-client/workflows/.github/workflows/tests.yml/badge.svg)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "tailwindcss": "^3.4.19"
+  }
+}

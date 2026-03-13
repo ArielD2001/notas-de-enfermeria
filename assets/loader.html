@@ -1,0 +1,46 @@
+<!---  LOADER Linea -->
+<style>
+    .loader{
+        top: 0;
+        left: 0;
+        display: flex;
+        position: absolute;
+        width: 100%;
+        height: 7px;
+        max-height: 7px;
+        z-index: 100000000 !important;
+        align-items: center;
+        transition: .7s;
+        background-color: lightgrey;
+    }
+    .circulo{
+
+        position:absolute ;
+        width: 100%;
+        height: 7px;
+        border-radius: 10px;
+        background-color: orange;
+        animation:giro  .7s cubic-bezier(0.77, 0, 0.175, 1); 
+    }
+    @keyframes giro {
+        from{
+            width: 0;
+        }
+        to{
+          width: 100%;
+        }
+    }
+
+</style>
+<div class="loader w-screen h-screen">
+    <div class="circulo"></div>
+</div>
+<script>
+ 
+        setTimeout(() => {
+        document.querySelector('.loader').style.display = 'none';
+            
+        }, 1000); 
+
+
+</script>

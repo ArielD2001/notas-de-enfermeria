@@ -1,0 +1,22 @@
+form{
+    width: 400px !important;
+    min-width: 350px;
+}
+.load-item{
+    width: 15px;
+    height: 15px;
+    border: 2px solid grey;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: giro-item .6s linear infinite;
+    margin-top: 11px;
+    margin-bottom: 3px;    
+}
+@keyframes giro-item {
+from{
+    transform: rotate(0deg);
+}
+to{
+    transform: rotate(360deg);
+}
+}

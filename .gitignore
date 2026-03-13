@@ -1,0 +1,7 @@
+config/config.php
+database/*.sql
+vendor/
+node_modules/
+*.log
+.php_error_log
+.DS_Store

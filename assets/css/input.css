@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-800 font-sans antialiased overflow-x-hidden;
+  }
+}
+
+@layer components {
+  /* Loader Styles */
+  #loader-wrapper {
+    @apply fixed inset-0 z-[9999] flex items-center justify-center bg-white transition-opacity duration-500;
+  }
+  
+  .loader {
+    @apply w-12 h-12 border-4 border-orange-200 border-t-orange-600 rounded-full animate-spin;
+  }
+
+  /* Sidebar Transitions */
+  .sidebar-transition {
+    @apply transition-all duration-300 ease-in-out;
+  }
+
+  /* Custom Scrollbar for Sidebar */
+  .custom-scrollbar::-webkit-scrollbar {
+    @apply w-1;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-orange-200 rounded-full;
+  }
+}
+
+/* Page transitions */
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
