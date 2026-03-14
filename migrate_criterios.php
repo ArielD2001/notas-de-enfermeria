@@ -26,6 +26,27 @@ try {
     $pdo->exec($alter_sql);
     echo "Columna 'rotaciones' añadida a 'modulos_rotacion'.\n";
 
+    // Eliminar columna 'creditos' si existe
+    try {
+        $pdo->exec("ALTER TABLE modulos_rotacion DROP COLUMN IF EXISTS creditos");
+        echo "Columna 'creditos' eliminada de 'modulos_rotacion'.\n";
+    } catch (PDOException $e) {
+        echo "No se pudo eliminar la columna 'creditos': " . $e->getMessage() . "\n";
+    }
+
+    // Asegurar que no existan múltiples registros por módulo
+    try {
+        $pdo->exec("ALTER TABLE criterios_formularios ADD UNIQUE KEY uk_id_modulo (id_modulo)");
+        echo "Índice único 'uk_id_modulo' creado en criterios_formularios.\n";
+    } catch (PDOException $e) {
+        // Ignorar si el índice ya existe o si hay duplicados existentes
+        if (strpos($e->getMessage(), 'Duplicate') !== false || strpos($e->getMessage(), 'Duplicate key') !== false || strpos($e->getMessage(), 'Duplicate entry') !== false) {
+            echo "No se pudo crear el índice único en criterios_formularios (posibles duplicados existentes).\n";
+        } else {
+            throw $e;
+        }
+    }
+
     // Preparar consulta INSERT
     $stmt = $pdo->prepare("INSERT INTO criterios_formularios (id_modulo, criterios_json) VALUES (?, ?) ON DUPLICATE KEY UPDATE criterios_json = VALUES(criterios_json)");
 
@@ -560,24 +581,6 @@ try {
 
 
     echo "Criterios para todos los módulos insertados.\n";
-
-    // Actualizar rotaciones en modulos_rotacion
-    $rotaciones_updates = [
-        1 => 1, // Promoción y prevención
-        2 => 2, // Actividades básicas
-        3 => 2, // Cuidado médico
-        4 => 3, // Cuidado materno infantil
-        5 => 2, // Prácticas administración
-        6 => 2  // Adulto mayor
-    ];
-
-    foreach ($rotaciones_updates as $id_modulo => $rotaciones) {
-        $stmt_rot = $pdo->prepare("UPDATE modulos_rotacion SET rotaciones = ? WHERE id_modulo = ?");
-        $stmt_rot->execute([$rotaciones, $id_modulo]);
-    }
-
-    echo "Rotaciones actualizadas en 'modulos_rotacion'.\n";
-
 } catch (PDOException $e) {
     echo "Error: " . $e->getMessage() . "\n";
 }

@@ -142,7 +142,7 @@ endif; ?>
             <p class="text-orange-100 text-sm mb-4 leading-relaxed">
                 Si encuentras dificultades al subir el archivo de Excel, asegúrate de que las columnas coincidan con el formato requerido.
             </p>
-            <a href="#" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-bold transition-colors">
+            <a href="#" onclick="openIndexGuideModal(); return false;" class="inline-flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-bold transition-colors">
                 Ver Guía de Uso
                 <i class="fa-solid fa-chevron-right text-xs"></i>
             </a>

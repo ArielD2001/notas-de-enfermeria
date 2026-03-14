@@ -480,9 +480,19 @@ require_once 'includes/header.php';
         }
 
         // --- Restaurar Estado Guardado ---
-        const savedData = <?php echo $data['detalles_json'] ?: '{}'; ?>;
-        const currentModule = <?php echo $data['id_modulo']; ?>;
-        const currentRotation = <?php echo $rotation; ?>;
+        <?php
+        // Convertir detalles_json a un arreglo PHP seguro
+        $savedDetalles = [];
+        if (!empty($data['detalles_json'])) {
+            $savedDetalles = json_decode($data['detalles_json'], true);
+            if (!is_array($savedDetalles)) {
+                $savedDetalles = [];
+            }
+        }
+        ?>
+        const savedData = <?php echo json_encode($savedDetalles, JSON_UNESCAPED_UNICODE); ?>;
+        const currentModule = <?php echo json_encode($data['id_modulo']); ?>;
+        const currentRotation = <?php echo json_encode($rotation); ?>;
 
         // Primero inicializar (esto asegura que subtotales empiecen bien)
         if (sectionGroups.length > 0) {
@@ -496,8 +506,8 @@ require_once 'includes/header.php';
             let val = savedData[key];
             let targetKey = key;
 
-            // Si es el módulo de rotaciones, filtrar solo las de la rotación actual
-            const modulosConRotacion = [2, 3, 4, 6];
+            // Si es un módulo con varias rotaciones, sólo usar datos de la rotación actual
+            const modulosConRotacion = <?php echo json_encode(array_keys($modulo_rotaciones)); ?>;
             if (modulosConRotacion.includes(currentModule)) {
                 const prefix = `r${currentRotation}_`;
                 if (key.startsWith(prefix)) {

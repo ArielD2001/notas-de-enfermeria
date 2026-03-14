@@ -102,15 +102,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['accion']) && $_POST['
 }
 
 // --- CONSULTAS PARA LA VISTA ---
+
+// Parámetros de búsqueda y paginación
+$busqueda = isset($_GET['busqueda']) ? trim($_GET['busqueda']) : '';
+$pagina = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
+$por_pagina = 10;
+$offset = ($pagina - 1) * $por_pagina;
+
+// Construir consulta con filtros
+$where = '';
+$params = [];
+if (!empty($busqueda)) {
+    $where = "WHERE (l.nombre_lista LIKE ? OR m.nombre_modulo LIKE ? OR u.nombre_completo LIKE ? OR l.grupo LIKE ?)";
+    $params = ["%$busqueda%", "%$busqueda%", "%$busqueda%", "%$busqueda%"];
+}
+
+// Contar total de registros
+$query_count = "
+    SELECT COUNT(*) FROM listas l
+    JOIN modulos_rotacion m ON l.id_modulo = m.id_modulo
+    JOIN usuarios u ON l.id_docente = u.id_usuario
+    $where
+";
+$stmt_count = $pdo->prepare($query_count);
+$stmt_count->execute($params);
+$total_registros = $stmt_count->fetchColumn();
+$total_paginas = ceil($total_registros / $por_pagina);
+
+// Obtener lista con paginación
 $query = "
     SELECT l.*, m.nombre_modulo, u.nombre_completo as docente,
     (SELECT COUNT(*) FROM asignaciones_practicas WHERE id_lista = l.id_lista) as total_estudiantes
     FROM listas l
     JOIN modulos_rotacion m ON l.id_modulo = m.id_modulo
     JOIN usuarios u ON l.id_docente = u.id_usuario
+    $where
     ORDER BY l.fecha_creacion DESC
+    LIMIT $por_pagina OFFSET $offset
 ";
-$listas = $pdo->query($query)->fetchAll();
+$stmt = $pdo->prepare($query);
+$stmt->execute($params);
+$listas = $stmt->fetchAll();
 
 $modulos = $pdo->query("SELECT id_modulo, nombre_modulo FROM modulos_rotacion ORDER BY nombre_modulo")->fetchAll();
 $docentes = $pdo->query("SELECT id_usuario, nombre_completo FROM usuarios WHERE rol = 'docente' ORDER BY nombre_completo")->fetchAll();
@@ -129,6 +161,24 @@ require_once 'includes/header.php';
         <i class="fa-solid fa-plus text-sm"></i>
         Subir Nueva Lista
     </button>
+</div>
+
+<!-- Barra de búsqueda compacta -->
+<div class="flex items-center justify-between gap-4 mb-6">
+    <form method="GET" class="flex items-center gap-3 flex-1 max-w-lg">
+        <div class="relative flex-1">
+            <input type="text" name="busqueda" value="<?php echo htmlspecialchars($busqueda); ?>" placeholder="Buscar listas..." class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all text-sm">
+            <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+        </div>
+        <button type="submit" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-xl shadow-sm hover:shadow-md transition-all">
+            <i class="fa-solid fa-search mr-1"></i> Buscar
+        </button>
+        <?php if (!empty($busqueda)): ?>
+            <a href="?<?php echo http_build_query(array_diff_key($_GET, ['busqueda' => ''])); ?>" class="px-3 py-2 text-slate-500 hover:text-slate-700 text-sm font-medium">
+                <i class="fa-solid fa-times"></i>
+            </a>
+        <?php endif; ?>
+    </form>
 </div>
 
 <?php if ($mensaje): ?>
@@ -178,7 +228,7 @@ require_once 'includes/header.php';
                             </span>
                         </td>
                         <td class="px-6 py-4 text-center">
-                            <form action="" method="POST" onsubmit="return confirm('¿Eliminar esta lista y todas sus asignaciones?');">
+                            <form action="" method="POST" onsubmit="showConfirmModal(this, event, '¿Eliminar esta lista y todas sus asignaciones? Esta acción no se puede deshacer.')">
                                 <input type="hidden" name="accion" value="eliminar">
                                 <input type="hidden" name="id_lista" value="<?php echo $l['id_lista']; ?>">
                                 <button type="submit" class="text-red-400 hover:text-red-600 p-2 rounded-full hover:bg-red-50 transition-colors" title="Eliminar Lista">
@@ -202,6 +252,39 @@ require_once 'includes/header.php';
         </table>
     </div>
 </div>
+
+<!-- Paginación -->
+<?php if ($total_paginas > 1): ?>
+<div class="bg-white px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+    <div class="text-sm text-slate-500">
+        Mostrando <?php echo ($offset + 1) . ' - ' . min($offset + $por_pagina, $total_registros); ?> de <?php echo $total_registros; ?> listas
+    </div>
+    <div class="flex items-center space-x-2">
+        <?php
+        $query_params = $_GET;
+        if ($pagina > 1): ?>
+            <?php $query_params['pagina'] = $pagina - 1; ?>
+            <a href="?<?php echo http_build_query($query_params); ?>" class="px-3 py-2 text-sm font-medium text-slate-500 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all">
+                <i class="fa-solid fa-chevron-left mr-1"></i> Anterior
+            </a>
+        <?php endif; ?>
+
+        <?php for ($i = max(1, $pagina - 2); $i <= min($total_paginas, $pagina + 2); $i++): ?>
+            <?php $query_params['pagina'] = $i; ?>
+            <a href="?<?php echo http_build_query($query_params); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i === $pagina ? 'text-orange-600 bg-orange-50 border-orange-300' : 'text-slate-500 bg-white border-slate-200'; ?> border rounded-2xl hover:bg-slate-50 transition-all">
+                <?php echo $i; ?>
+            </a>
+        <?php endfor; ?>
+
+        <?php if ($pagina < $total_paginas): ?>
+            <?php $query_params['pagina'] = $pagina + 1; ?>
+            <a href="?<?php echo http_build_query($query_params); ?>" class="px-3 py-2 text-sm font-medium text-slate-500 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all">
+                Siguiente <i class="fa-solid fa-chevron-right ml-1"></i>
+            </a>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <!-- Modal Nueva Lista -->
 <div id="modal-nueva-lista" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] flex items-center justify-center hidden p-4">
@@ -300,6 +383,53 @@ require_once 'includes/header.php';
         document.getElementById('file-name-modal').textContent = fileName;
         document.getElementById('file-name-modal').classList.add('text-orange-600');
     });
+</script>
+
+<!-- Modal de Confirmación -->
+<div id="modalConfirmacion" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[300] flex items-center justify-center hidden p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md">
+        <div class="p-6">
+            <div class="text-center">
+                <div class="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-triangle-exclamation text-orange-500 text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-900 mb-2">Confirmar Acción</h3>
+                <p id="confirmMessage" class="text-slate-600 mb-6">¿Estás seguro?</p>
+                <div class="flex gap-3">
+                    <button onclick="document.getElementById('modalConfirmacion').classList.add('hidden')" class="flex-1 px-4 py-3 border border-slate-200 text-slate-500 font-bold rounded-2xl hover:bg-slate-50 transition-all">
+                        Cancelar
+                    </button>
+                    <button onclick="executeConfirm(); document.getElementById('modalConfirmacion').classList.add('hidden')" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-2xl shadow-lg shadow-red-600/20 transition-all">
+                        Confirmar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Modal de confirmación
+let confirmForm = null;
+function showConfirmModal(form, event, message) {
+    event.preventDefault();
+    confirmForm = form;
+    document.getElementById('confirmMessage').textContent = message;
+    document.getElementById('modalConfirmacion').classList.remove('hidden');
+}
+
+function executeConfirm() {
+    if (confirmForm) {
+        confirmForm.submit();
+    }
+}
+
+// Cerrar modal de confirmación al hacer clic fuera
+document.getElementById('modalConfirmacion').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.classList.add('hidden');
+    }
+});
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

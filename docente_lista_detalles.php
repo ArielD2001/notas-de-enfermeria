@@ -63,7 +63,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_asignacion'])) {
     }
 }
 
-// Obtener estudiantes de esta lista
+// Parámetros de búsqueda y paginación
+$busqueda = isset($_GET['busqueda']) ? trim($_GET['busqueda']) : '';
+$pagina = isset($_GET['pagina']) ? (int)$_GET['pagina'] : 1;
+$por_pagina = 15;
+$offset = ($pagina - 1) * $por_pagina;
+
+// Construir consulta con filtros
+$where_extra = '';
+$params_est = [$id_lista, $id_docente];
+if (!empty($busqueda)) {
+    $where_extra = " AND (p.identificacion LIKE ? OR CONCAT(p.nombres, ' ', p.apellidos) LIKE ? OR p.nombres LIKE ? OR p.apellidos LIKE ?)";
+    $params_est = array_merge($params_est, ["%$busqueda%", "%$busqueda%", "%$busqueda%", "%$busqueda%"]);
+}
+
+// Contar total de estudiantes
+$stmt_count = $pdo->prepare("
+    SELECT COUNT(*) FROM asignaciones_practicas a
+    JOIN practicantes p ON a.id_practicante = p.id_practicante
+    WHERE a.id_lista = ? AND a.id_docente = ? $where_extra
+");
+$stmt_count->execute($params_est);
+$total_registros = $stmt_count->fetchColumn();
+$total_paginas = ceil($total_registros / $por_pagina);
+
+// Obtener estudiantes con paginación
 $stmt_est = $pdo->prepare("
     SELECT 
         a.id_asignacion,
@@ -72,10 +96,11 @@ $stmt_est = $pdo->prepare("
     FROM asignaciones_practicas a
     JOIN practicantes p ON a.id_practicante = p.id_practicante
     LEFT JOIN calificaciones c ON a.id_asignacion = c.id_asignacion
-    WHERE a.id_lista = ? AND a.id_docente = ?
+    WHERE a.id_lista = ? AND a.id_docente = ? $where_extra
     ORDER BY p.apellidos ASC, p.nombres ASC
+    LIMIT $por_pagina OFFSET $offset
 ");
-$stmt_est->execute([$id_lista, $id_docente]);
+$stmt_est->execute($params_est);
 $estudiantes = $stmt_est->fetchAll();
 
 require_once 'includes/header.php';
@@ -98,6 +123,43 @@ require_once 'includes/header.php';
     <a href="docente_calificar.php" class="bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 px-6 py-3 rounded-2xl font-bold transition-all flex items-center gap-2 shadow-sm">
         <i class="fa-solid fa-arrow-left"></i> Volver
     </a>
+</div>
+
+<!-- Botones de exportación -->
+<div class="bg-white border border-slate-200 rounded-2xl p-4 mb-6 shadow-sm">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-file-export text-slate-400"></i>
+            <span class="text-sm font-semibold text-slate-700">Exportar Reporte</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <a href="reportes.php?export_type=excel&id_lista=<?php echo $id_lista; ?>" class="inline-flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl transition-all shadow-sm hover:shadow-md">
+                <i class="fa-solid fa-file-excel"></i> Excel
+            </a>
+            <a href="reportes.php?export_type=pdf&id_lista=<?php echo $id_lista; ?>" class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-xl transition-all shadow-sm hover:shadow-md">
+                <i class="fa-solid fa-file-pdf"></i> PDF
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Barra de búsqueda compacta -->
+<div class="flex items-center justify-between gap-4 mb-6">
+    <form method="GET" class="flex items-center gap-3 flex-1 max-w-lg">
+        <input type="hidden" name="id_lista" value="<?php echo $id_lista; ?>">
+        <div class="relative flex-1">
+            <input type="text" name="busqueda" value="<?php echo htmlspecialchars($busqueda); ?>" placeholder="Buscar estudiantes..." class="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all text-sm">
+            <i class="fa-solid fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-sm"></i>
+        </div>
+        <button type="submit" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-sm font-medium rounded-xl shadow-sm hover:shadow-md transition-all">
+            <i class="fa-solid fa-search mr-1"></i> Buscar
+        </button>
+        <?php if (!empty($busqueda)): ?>
+            <a href="?id_lista=<?php echo $id_lista; ?><?php echo isset($_GET['pagina']) ? '&pagina=' . $_GET['pagina'] : ''; ?>" class="px-3 py-2 text-slate-500 hover:text-slate-700 text-sm font-medium">
+                <i class="fa-solid fa-times"></i>
+            </a>
+        <?php endif; ?>
+    </form>
 </div>
 
 <?php if ($mensaje): ?>
@@ -171,22 +233,14 @@ require_once 'includes/header.php';
                             </p>
                         </td>
                         <td class="px-6 py-4 text-center">
-                            <?php if (in_array($lista_info['id_modulo'], [2, 3, 4, 5, 6])): ?>
+                            <?php if ($lista_info['rotaciones'] > 1): ?>
                                 <div class="flex flex-col gap-2 min-w-[120px]">
-                                    <a href="docente_formulario_calificar.php?id_asignacion=<?php echo $e['id_asignacion']; ?>&id_lista=<?php echo $id_lista; ?>&r=1" 
-                                       class="inline-flex items-center justify-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-black text-white text-[10px] font-bold rounded-lg transition-all">
-                                        R1
-                                    </a>
-                                    <a href="docente_formulario_calificar.php?id_asignacion=<?php echo $e['id_asignacion']; ?>&id_lista=<?php echo $id_lista; ?>&r=2" 
-                                       class="inline-flex items-center justify-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-black text-white text-[10px] font-bold rounded-lg transition-all">
-                                        R2
-                                    </a>
-                                    <?php if ($lista_info['id_modulo'] == 4): ?>
-                                        <a href="docente_formulario_calificar.php?id_asignacion=<?php echo $e['id_asignacion']; ?>&id_lista=<?php echo $id_lista; ?>&r=3" 
+                                    <?php for ($r = 1; $r <= $lista_info['rotaciones']; $r++): ?>
+                                        <a href="docente_formulario_calificar.php?id_asignacion=<?php echo $e['id_asignacion']; ?>&id_lista=<?php echo $id_lista; ?>&r=<?php echo $r; ?>" 
                                            class="inline-flex items-center justify-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-black text-white text-[10px] font-bold rounded-lg transition-all">
-                                            R3
+                                            R<?php echo $r; ?>
                                         </a>
-                                    <?php endif; ?>
+                                    <?php endfor; ?>
                                 </div>
                             <?php else: ?>
                                 <a href="docente_formulario_calificar.php?id_asignacion=<?php echo $e['id_asignacion']; ?>&id_lista=<?php echo $id_lista; ?>" 
@@ -209,5 +263,39 @@ require_once 'includes/header.php';
         </table>
     </div>
 </div>
+
+<!-- Paginación -->
+<?php if ($total_paginas > 1): ?>
+<div class="bg-white px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+    <div class="text-sm text-slate-500">
+        Mostrando <?php echo ($offset + 1) . ' - ' . min($offset + $por_pagina, $total_registros); ?> de <?php echo $total_registros; ?> estudiantes
+    </div>
+    <div class="flex items-center space-x-2">
+        <?php
+        $query_params = $_GET;
+        $query_params['id_lista'] = $id_lista;
+        if ($pagina > 1): ?>
+            <?php $query_params['pagina'] = $pagina - 1; ?>
+            <a href="?<?php echo http_build_query($query_params); ?>" class="px-3 py-2 text-sm font-medium text-slate-500 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all">
+                <i class="fa-solid fa-chevron-left mr-1"></i> Anterior
+            </a>
+        <?php endif; ?>
+
+        <?php for ($i = max(1, $pagina - 2); $i <= min($total_paginas, $pagina + 2); $i++): ?>
+            <?php $query_params['pagina'] = $i; ?>
+            <a href="?<?php echo http_build_query($query_params); ?>" class="px-3 py-2 text-sm font-medium <?php echo $i === $pagina ? 'text-orange-600 bg-orange-50 border-orange-300' : 'text-slate-500 bg-white border-slate-200'; ?> border rounded-2xl hover:bg-slate-50 transition-all">
+                <?php echo $i; ?>
+            </a>
+        <?php endfor; ?>
+
+        <?php if ($pagina < $total_paginas): ?>
+            <?php $query_params['pagina'] = $pagina + 1; ?>
+            <a href="?<?php echo http_build_query($query_params); ?>" class="px-3 py-2 text-sm font-medium text-slate-500 bg-white border border-slate-200 rounded-2xl hover:bg-slate-50 transition-all">
+                Siguiente <i class="fa-solid fa-chevron-right ml-1"></i>
+            </a>
+        <?php endif; ?>
+    </div>
+</div>
+<?php endif; ?>
 
 <?php require_once 'includes/footer.php'; ?>
