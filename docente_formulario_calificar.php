@@ -29,28 +29,40 @@ if (!$id_asignacion) {
     exit;
 }
 
-// Obtener información de la asignación, estudiante y módulo
+// Obtener la asignación y verificar que pertenece al docente
+$stmt_asignacion = $pdo->prepare("SELECT a.*, p.nombres, p.apellidos, p.identificacion, m.nombre_modulo, l.nombre_lista, l.periodo_academico FROM asignaciones_practicas a JOIN practicantes p ON a.id_practicante = p.id_practicante JOIN modulos_rotacion m ON a.id_modulo = m.id_modulo JOIN listas l ON a.id_lista = l.id_lista WHERE a.id_asignacion = ? AND a.id_docente = ?");
+$stmt_asignacion->execute([$id_asignacion, $id_docente]);
+$asignacion = $stmt_asignacion->fetch();
+
+if (!$asignacion) {
+    header("Location: docente_calificar.php");
+    exit;
+}
+
+// Obtener información del estudiante y calificaciones
 $stmt = $pdo->prepare("
     SELECT 
-        a.id_asignacion, a.id_lista,
         p.nombres, p.apellidos, p.identificacion,
-        m.nombre_modulo, m.id_modulo,
-        l.nombre_lista,
         c.nota_final, c.nota_r1, c.nota_r2, c.nota_r3, c.observaciones, c.detalles_json
     FROM asignaciones_practicas a
     JOIN practicantes p ON a.id_practicante = p.id_practicante
-    JOIN modulos_rotacion m ON a.id_modulo = m.id_modulo
-    JOIN listas l ON a.id_lista = l.id_lista
     LEFT JOIN calificaciones c ON a.id_asignacion = c.id_asignacion
-    WHERE a.id_asignacion = ? AND a.id_docente = ?
+    WHERE a.id_asignacion = ?
 ");
-$stmt->execute([$id_asignacion, $id_docente]);
+$stmt->execute([$id_asignacion]);
 $data = $stmt->fetch();
 
 if (!$data) {
     header("Location: docente_calificar.php");
     exit;
 }
+
+// Agregar info de la lista y módulo
+$data['id_asignacion'] = $asignacion['id_asignacion']; // Para compatibilidad
+$data['id_lista'] = $id_lista;
+$data['nombre_lista'] = $lista_info['nombre_lista'];
+$data['nombre_modulo'] = $lista_info['nombre_modulo'];
+$data['id_modulo'] = $lista_info['id_modulo'];
 
 // Cargar criterios desde la base de datos (una sola vez)
 $stmt_criterios = $pdo->query("SELECT id_modulo, criterios_json FROM criterios_formularios");

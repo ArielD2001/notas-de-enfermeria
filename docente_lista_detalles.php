@@ -33,20 +33,31 @@ if (!$lista_info) {
     exit;
 }
 
+// Obtener la asignación de la lista
+$stmt_asignacion = $pdo->prepare("SELECT COUNT(*) as total_asignaciones FROM asignaciones_practicas WHERE id_lista = ? AND id_docente = ?");
+$stmt_asignacion->execute([$id_lista, $id_docente]);
+$asignacion_count = $stmt_asignacion->fetchColumn();
+
+if ($asignacion_count == 0) {
+    $error = "No se encontraron asignaciones para esta lista.";
+}
+
 $mensaje = '';
 $error = '';
 
 // Procesar calificación
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_asignacion'])) {
-    $id_asignacion = (int)$_POST['id_asignacion'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_practicante'])) {
+    $id_practicante = (int)$_POST['id_practicante'];
     $nota_final = (float)$_POST['nota_final'];
     $observaciones = $_POST['observaciones'] ?? '';
     
-    // Verificar asignación
-    $stmt_check = $pdo->prepare("SELECT id_asignacion FROM asignaciones_practicas WHERE id_asignacion = ? AND id_docente = ? AND id_lista = ?");
-    $stmt_check->execute([$id_asignacion, $id_docente, $id_lista]);
+    // Obtener id_asignacion para este practicante en la lista
+    $stmt_asig = $pdo->prepare("SELECT id_asignacion FROM asignaciones_practicas WHERE id_practicante = ? AND id_lista = ? AND id_docente = ?");
+    $stmt_asig->execute([$id_practicante, $id_lista, $id_docente]);
+    $asignacion = $stmt_asig->fetch();
     
-    if ($stmt_check->fetch()) {
+    if ($asignacion) {
+        $id_asignacion = $asignacion['id_asignacion'];
         try {
             $stmt = $pdo->prepare("
                 INSERT INTO calificaciones (id_asignacion, nota_final, observaciones) 
@@ -60,6 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['id_asignacion'])) {
         } catch(PDOException $e) {
             $error = "Error al guardar: " . $e->getMessage();
         }
+    } else {
+        $error = "Asignación no encontrada para este estudiante.";
     }
 }
 
@@ -71,37 +84,45 @@ $offset = ($pagina - 1) * $por_pagina;
 
 // Construir consulta con filtros
 $where_extra = '';
-$params_est = [$id_lista, $id_docente];
+$params_extra = [];
 if (!empty($busqueda)) {
     $where_extra = " AND (p.identificacion LIKE ? OR CONCAT(p.nombres, ' ', p.apellidos) LIKE ? OR p.nombres LIKE ? OR p.apellidos LIKE ?)";
-    $params_est = array_merge($params_est, ["%$busqueda%", "%$busqueda%", "%$busqueda%", "%$busqueda%"]);
+    $params_extra = ["%$busqueda%", "%$busqueda%", "%$busqueda%", "%$busqueda%"];
 }
 
-// Contar total de estudiantes
-$stmt_count = $pdo->prepare("
-    SELECT COUNT(*) FROM asignaciones_practicas a
-    JOIN practicantes p ON a.id_practicante = p.id_practicante
-    WHERE a.id_lista = ? AND a.id_docente = ? $where_extra
-");
-$stmt_count->execute($params_est);
-$total_registros = $stmt_count->fetchColumn();
-$total_paginas = ceil($total_registros / $por_pagina);
+if ($asignacion_count > 0) {
+    $placeholders = ''; // No needed anymore
+    
+    // Contar total de estudiantes
+    $stmt_count = $pdo->prepare("
+        SELECT COUNT(*) FROM practicantes p
+        JOIN asignaciones_practicas ap ON p.id_practicante = ap.id_practicante
+        WHERE ap.id_lista = ? AND ap.id_docente = ? $where_extra
+    ");
+    $stmt_count->execute(array_merge([$id_lista, $id_docente], $params_extra));
+    $total_registros = $stmt_count->fetchColumn();
+    $total_paginas = ceil($total_registros / $por_pagina);
 
-// Obtener estudiantes con paginación
-$stmt_est = $pdo->prepare("
-    SELECT 
-        a.id_asignacion,
-        p.identificacion, p.nombres, p.apellidos,
-        c.nota_final, c.nota_r1, c.nota_r2, c.nota_r3, c.observaciones
-    FROM asignaciones_practicas a
-    JOIN practicantes p ON a.id_practicante = p.id_practicante
-    LEFT JOIN calificaciones c ON a.id_asignacion = c.id_asignacion
-    WHERE a.id_lista = ? AND a.id_docente = ? $where_extra
-    ORDER BY p.apellidos ASC, p.nombres ASC
-    LIMIT $por_pagina OFFSET $offset
-");
-$stmt_est->execute($params_est);
-$estudiantes = $stmt_est->fetchAll();
+    // Obtener estudiantes con paginación
+    $stmt_est = $pdo->prepare("
+        SELECT 
+            ap.id_asignacion,
+            p.identificacion, p.nombres, p.apellidos, p.id_practicante,
+            c.nota_final, c.nota_r1, c.nota_r2, c.nota_r3, c.observaciones
+        FROM practicantes p
+        JOIN asignaciones_practicas ap ON p.id_practicante = ap.id_practicante
+        LEFT JOIN calificaciones c ON c.id_asignacion = ap.id_asignacion
+        WHERE ap.id_lista = ? AND ap.id_docente = ? $where_extra
+        ORDER BY p.apellidos ASC, p.nombres ASC
+        LIMIT $por_pagina OFFSET $offset
+    ");
+    $stmt_est->execute(array_merge([$id_lista, $id_docente], $params_extra));
+    $estudiantes = $stmt_est->fetchAll();
+} else {
+    $total_registros = 0;
+    $total_paginas = 0;
+    $estudiantes = [];
+}
 
 require_once 'includes/header.php';
 ?>
@@ -254,7 +275,7 @@ require_once 'includes/header.php';
                 <?php endforeach; ?>
                 <?php if (empty($estudiantes)): ?>
                     <tr>
-                        <td colspan="4" class="px-6 py-12 text-center italic text-slate-400">
+                        <td colspan="8" class="px-6 py-12 text-center italic text-slate-400">
                             No hay estudiantes vinculados a esta lista.
                         </td>
                     </tr>

@@ -28,45 +28,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export_type'])) {
     
     // Consulta base
     $query = "
-        SELECT 
+        SELECT
             p.identificacion, p.apellidos, p.nombres,
             m.nombre_modulo, m.rotaciones,
-            a.periodo_academico,
+            ap.periodo_academico,
             c.nota_final, c.nota_r1, c.nota_r2, c.nota_r3, c.observaciones,
             u.nombre_completo as docente,
             l.nombre_lista, l.grupo, l.semestre
-        FROM asignaciones_practicas a
-        JOIN practicantes p ON a.id_practicante = p.id_practicante
-        JOIN modulos_rotacion m ON a.id_modulo = m.id_modulo
-        JOIN usuarios u ON a.id_docente = u.id_usuario
-        JOIN listas l ON a.id_lista = l.id_lista
-        LEFT JOIN calificaciones c ON a.id_asignacion = c.id_asignacion
+        FROM asignaciones_practicas ap
+        LEFT JOIN calificaciones c ON ap.id_asignacion = c.id_asignacion
+        JOIN practicantes p ON ap.id_practicante = p.id_practicante
+        JOIN modulos_rotacion m ON ap.id_modulo = m.id_modulo
+        JOIN listas l ON ap.id_lista = l.id_lista
+        JOIN usuarios u ON ap.id_docente = u.id_usuario
         WHERE 1=1
     ";
-    
+
     $params = [];
-    
+
     if ($rol === 'docente') {
-        $query .= " AND a.id_docente = :id_docente";
+        $query .= " AND ap.id_docente = :id_docente";
         $params[':id_docente'] = $id_usuario;
     }
-    
+
     if ($id_lista) {
-        $query .= " AND a.id_lista = :id_lista";
+        $query .= " AND ap.id_lista = :id_lista";
         $params[':id_lista'] = $id_lista;
     }
-    
+
     if ($modulo) {
-        $query .= " AND a.id_modulo = :modulo";
+        $query .= " AND ap.id_modulo = :modulo";
         $params[':modulo'] = $modulo;
     }
-    
+
     if ($periodo) {
-        $query .= " AND a.periodo_academico = :periodo";
+        $query .= " AND ap.periodo_academico = :periodo";
         $params[':periodo'] = $periodo;
     }
     
-    $query .= " ORDER BY a.periodo_academico DESC, m.nombre_modulo ASC, p.apellidos ASC";
+    $query .= " ORDER BY c.periodo_academico DESC, m.nombre_modulo ASC, p.apellidos ASC";
     
     $stmt = $pdo->prepare($query);
     $stmt->execute($params);
@@ -231,15 +231,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['export_type'])) {
 
 // Interfaz para generar reportes
 // Obtener filtros disponibles según rol
-$q_mod = "SELECT DISTINCT m.id_modulo, m.nombre_modulo FROM asignaciones_practicas a JOIN modulos_rotacion m ON a.id_modulo = m.id_modulo";
-$q_per = "SELECT DISTINCT periodo_academico FROM asignaciones_practicas";
+$q_mod = "SELECT DISTINCT m.id_modulo, m.nombre_modulo FROM listas l JOIN modulos_rotacion m ON l.id_modulo = m.id_modulo";
+$q_per = "SELECT DISTINCT periodo_academico FROM listas";
 $q_list = "SELECT DISTINCT l.id_lista, l.nombre_lista, m.nombre_modulo, l.grupo, l.semestre
            FROM listas l
            JOIN modulos_rotacion m ON l.id_modulo = m.id_modulo";
 
 $p_mod = []; $p_per = []; $p_list = [];
 if ($rol === 'docente') {
-    $q_mod .= " WHERE a.id_docente = ?";
+    $q_mod .= " WHERE l.id_docente = ?";
     $q_per .= " WHERE id_docente = ?";
     $q_list .= " WHERE l.id_docente = ?";
     $p_mod[] = $id_usuario;
