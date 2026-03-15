@@ -30,7 +30,7 @@ if (!$id_asignacion) {
 }
 
 // Obtener la asignación y verificar que pertenece al docente
-$stmt_asignacion = $pdo->prepare("SELECT a.*, p.nombres, p.apellidos, p.identificacion, m.nombre_modulo, l.nombre_lista, l.periodo_academico FROM asignaciones_practicas a JOIN practicantes p ON a.id_practicante = p.id_practicante JOIN modulos_rotacion m ON a.id_modulo = m.id_modulo JOIN listas l ON a.id_lista = l.id_lista WHERE a.id_asignacion = ? AND a.id_docente = ?");
+$stmt_asignacion = $pdo->prepare("SELECT a.*, p.nombres, p.apellidos, p.identificacion, m.id_modulo, m.nombre_modulo, l.nombre_lista, l.periodo_academico FROM asignaciones_practicas a JOIN practicantes p ON a.id_practicante = p.id_practicante JOIN modulos_rotacion m ON a.id_modulo = m.id_modulo JOIN listas l ON a.id_lista = l.id_lista WHERE a.id_asignacion = ? AND a.id_docente = ?");
 $stmt_asignacion->execute([$id_asignacion, $id_docente]);
 $asignacion = $stmt_asignacion->fetch();
 
@@ -58,11 +58,11 @@ if (!$data) {
 }
 
 // Agregar info de la lista y módulo
-$data['id_asignacion'] = $asignacion['id_asignacion']; // Para compatibilidad
+$data['id_asignacion'] = $asignacion['id_asignacion'];
 $data['id_lista'] = $id_lista;
-$data['nombre_lista'] = $lista_info['nombre_lista'];
-$data['nombre_modulo'] = $lista_info['nombre_modulo'];
-$data['id_modulo'] = $lista_info['id_modulo'];
+$data['nombre_lista'] = $asignacion['nombre_lista'];
+$data['nombre_modulo'] = $asignacion['nombre_modulo'];
+$data['id_modulo'] = $asignacion['id_modulo'];
 
 // Cargar criterios desde la base de datos (una sola vez)
 $stmt_criterios = $pdo->query("SELECT id_modulo, criterios_json FROM criterios_formularios");
